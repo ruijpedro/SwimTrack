@@ -15,3 +15,15 @@ Aplicação Android pessoal para acompanhamento competitivo de natação.
 ## Roadmap
 - v1.2 → recordes distritais e nacionais
 - v1.3 → calendário + notificações
+
+## WebApp
+
+A versão WebApp está em `webapp/` e compila com Vite/React.
+
+```bash
+cd webapp
+npm install
+npm run build
+```
+
+O workflow `.github/workflows/webapp.yml` gera o artifact `SwimTrack-WebApp` e publica no GitHub Pages.
