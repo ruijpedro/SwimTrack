@@ -39,9 +39,11 @@ class MainActivity : Activity() {
     private lateinit var tabTempos: TextView
     private lateinit var tabTac: TextView
     private lateinit var tabEvolucao: TextView
+    private lateinit var tabCalendario: TextView
     private lateinit var tabMais: TextView
 
     private val PICK_PDF = 9001
+    private val PICK_CALENDAR = 9002
     private val bg = Color.rgb(18, 35, 70)
     private val card = Color.rgb(61, 82, 120)
     private val cardDark = Color.rgb(48, 70, 105)
@@ -97,8 +99,9 @@ class MainActivity : Activity() {
         tabTempos = tab("TEMPOS")
         tabTac = tab("TAC")
         tabEvolucao = tab("EVOLUÇÃO")
+        tabCalendario = tab("CALENDÁRIO")
         tabMais = tab("MAIS")
-        listOf(tabAtleta, tabImportar, tabTempos, tabTac, tabEvolucao, tabMais).forEach {
+        listOf(tabAtleta, tabImportar, tabTempos, tabTac, tabCalendario, tabEvolucao, tabMais).forEach {
             row.addView(it, LinearLayout.LayoutParams(190, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
         horizontal.addView(row)
@@ -107,13 +110,14 @@ class MainActivity : Activity() {
         tabImportar.setOnClickListener { showImportar() }
         tabTempos.setOnClickListener { showTempos() }
         tabTac.setOnClickListener { showTac("ALL") }
+        tabCalendario.setOnClickListener { showCalendario() }
         tabEvolucao.setOnClickListener { showEvolucao() }
         tabMais.setOnClickListener { showMais() }
     }
 
     private fun clear(active: TextView) {
         content.removeAllViews()
-        listOf(tabAtleta, tabImportar, tabTempos, tabTac, tabEvolucao, tabMais).forEach {
+        listOf(tabAtleta, tabImportar, tabTempos, tabTac, tabCalendario, tabEvolucao, tabMais).forEach {
             it.setBackgroundColor(card); it.setTextColor(white)
         }
         active.setBackgroundColor(yellow); active.setTextColor(bg)
@@ -323,6 +327,22 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showCalendario() {
+        clear(tabCalendario)
+        content.addView(section("CALENDÁRIO — ÉPOCA ${get("season_start")}/${((get("season_start").toIntOrNull() ?: 2026)+1).toString().takeLast(2)}"))
+        content.addView(info("Filtro ativo", "Júnior + Absolutos + Clube 3.ª Divisão"))
+        content.addView(button("📥 IMPORTAR CALENDÁRIO DA ÉPOCA") {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply { addCategory(Intent.CATEGORY_OPENABLE); type="application/pdf" }, PICK_CALENDAR)
+        })
+        content.addView(info("Atualização anual", "Cada época fica guardada separadamente. Altera o ano inicial da época no perfil (2026, 2027, 2028...) e importa o respetivo PDF. Os calendários anteriores não são apagados."))
+        val seasonKey = get("season_start").ifBlank { "2026" }
+        val raw=get("calendar_text_$seasonKey").ifBlank { if(seasonKey=="2026") get("calendar_text") else "" }
+        if(raw.isBlank()) content.addView(info("Calendário", "2026/27 incluído na versão iOS; importa aqui o PDF anual para Android.")) else raw.lines().filter{it.isNotBlank()}.forEach{ line ->
+            val relevant = normalizeAscii(line).let{it.contains("junior")||it.contains("absolut")||it.contains("3 divis")||it.contains("3ª divis")||it.contains("3.ª divis")}
+            if(relevant) content.addView(infoColor("Competição", line, if(normalizeAscii(line).contains("3 divis")) yellow else card))
+        }
+    }
+
     private fun showMais() {
         clear(tabMais)
         content.addView(section("MAIS"))
@@ -383,6 +403,16 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_CALENDAR && resultCode == RESULT_OK) {
+            val uri=data?.data ?: return
+            try { contentResolver.openInputStream(uri).use { input ->
+                if(input==null) throw IllegalStateException("Não foi possível abrir o calendário")
+                val document=PDDocument.load(input); val text=PDFTextStripper().getText(document); document.close()
+                val useful=text.lines().map{it.trim().replace(Regex("\\s+")," ")}.filter{ line -> val n=normalizeAscii(line); line.contains(Regex("20\\d{2}")) || n.contains("junior") || n.contains("absolut") || n.contains("3 divis") }
+                if(useful.isEmpty()) toast("Calendário não reconhecido.") else { val seasonKey=get("season_start").ifBlank { "2026" }; prefs.edit().putString("calendar_text_$seasonKey",useful.joinToString("\n")).apply(); toast("Calendário ${seasonKey}/${((seasonKey.toIntOrNull() ?: 2026)+1).toString().takeLast(2)} importado e guardado."); showCalendario() }
+            }} catch(e:Exception){toast("Erro ao importar calendário: ${e.message}")}
+            return
+        }
         if (requestCode == PICK_PDF && resultCode == RESULT_OK) {
             val uri = data?.data ?: return
             try {
@@ -401,7 +431,7 @@ class MainActivity : Activity() {
 
     private fun calculateCategory(year: Int?, seasonStart: Int, sex: String): String {
         if (year == null) return "Por definir"
-        val age = seasonStart - year
+        val age = (seasonStart + 1) - year
         return if (sex.uppercase(Locale.ROOT).startsWith("F")) when (age) {
             13 -> "Infantil B Feminino"; 14 -> "Infantil A Feminino"; 15 -> "Juvenil B Feminino"; 16 -> "Juvenil A Feminino"; 17 -> "Júnior Feminino 1.º ano"; 18 -> "Júnior Feminino 2.º ano"; else -> if (age >= 19) "Sénior Feminino" else "Por definir"
         } else when (age) {
