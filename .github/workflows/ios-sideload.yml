@@ -1,0 +1,29 @@
+name: Build iOS IPA - SideStore AltStore
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build unsigned iPhone app
+        working-directory: ios
+        run: |
+          xcodebuild -project SwimTrack.xcodeproj -scheme SwimTrack -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Create unsigned IPA
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/SwimTrack.app Payload/
+          zip -qry SwimTrack_SideStore_AltStore_unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SwimTrack-iOS-SideStore-AltStore
+          path: ios/SwimTrack_SideStore_AltStore_unsigned.ipa
