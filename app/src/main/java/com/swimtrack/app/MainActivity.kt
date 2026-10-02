@@ -140,7 +140,11 @@ class MainActivity : Activity() {
         content.addView(button("✏️ EDITAR PERFIL") { showEditProfile() })
         content.addView(button("🌐 ABRIR SWIMRANKINGS") {
             val id = get("athlete_id").ifBlank { "5631298" }
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=$id")))
+            val url = Uri.parse("https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=$id")
+            val chrome = Intent(Intent.ACTION_VIEW, url).apply { setPackage("com.android.chrome"); addCategory(Intent.CATEGORY_BROWSABLE) }
+            try { startActivity(chrome) } catch (_: android.content.ActivityNotFoundException) {
+                startActivity(Intent(Intent.ACTION_VIEW, url).apply { addCategory(Intent.CATEGORY_BROWSABLE) })
+            }
         })
     }
 

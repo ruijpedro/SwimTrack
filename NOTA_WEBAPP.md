@@ -1,0 +1,1 @@
+A WebApp publicada em ruijpedro.github.io/SwimTrack/ NÃO consta deste ZIP V2.4. Este pacote corrige apenas a abertura do Swimrankings no Android, preferindo Chrome. Para corrigir o erro «Importados 0 tempos» da WebApp é necessário o código-fonte do repositório GitHub Pages (index.html e scripts). Não substituir a WebApp por este projeto Android/iOS.
